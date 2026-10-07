@@ -6,8 +6,8 @@ Finds every NSE stock whose **day's high reached or crossed its prior 52-week hi
 
 | Part | Status | Folder |
 |---|---|---|
-| 1. Background scanner (52-week highs & lows) | **Built** | `scanner/`, `.github/workflows/` |
-| 2. Dashboard (filters, KPIs, "Dive deeper") | Placeholder | `app/` |
+| 1. Background scanner (52-week highs & lows) | **Live** | `scanner/`, `.github/workflows/` |
+| 2. Dashboard (filters, KPIs, sector breadth, deep dive) | **Built** | `app/` |
 | 3. AI + news APIs (Collector AI, Analyst AI, report) | Planned | `ai/` |
 
 ---
@@ -65,13 +65,29 @@ streamlit run app/streamlit_app.py
 
 If NSE blocks the stock-list download, save `EQUITY_L.csv` from nseindia.com and run `python -m scanner.universe --from-file EQUITY_L.csv`.
 
-## Dashboard on Streamlit Cloud
+## Dashboard
 
-Point the app at `app/streamlit_app.py` and add a secret:
+`app/streamlit_app.py` is a three-page Streamlit app:
+
+- **Dashboard** – status line (session, market state, last update, coverage), KPI tiles (52-week highs, lows,
+  volume-confirmed highs, net breadth, % of universe making highs, with change vs the previous session),
+  tabs for highs / lows (sortable table, row select → *Dive deeper*, CSV download, volume-vs-distance chart),
+  sector breadth, daily trend and scan details. Sidebar filters: session, sector, market cap, minimum % beyond
+  the level, volume-confirmed, still holding, hide new listings, hide unconfirmed, search; settings: auto-refresh
+  every 5 minutes and refresh now.
+- **Deep dive** – one stock: hit metrics, one-year candles with the prior 52-week level and the hit day,
+  sector context (how many peers hit too), the stock's hit history, and the AI report section (part 3).
+- **How it works** – plain-language explanation of the rule, timings and columns.
+
+On Streamlit Cloud point the app at `app/streamlit_app.py` and add the secret:
 
 ```
 DATA_URL = "https://raw.githubusercontent.com/<user>/<repo>/data"
 ```
+
+Sector labels: NSE's index lists label ~750 stocks; the nightly job looks up the rest on Yahoo Finance
+(up to 400 per night, today's hits first), maps them to NSE's sector names and caches them in
+`data/sector_cache.csv`.
 
 ## Settings
 

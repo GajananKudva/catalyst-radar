@@ -1,6 +1,6 @@
 # Full app (Streamlit Cloud / local). Scanner deps first.
 -r requirements-scanner.txt
-streamlit>=1.38
+streamlit>=1.50
 plotly>=5.22
 # Part 3: AI + news APIs
 groq>=0.11

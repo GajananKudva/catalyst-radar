@@ -74,5 +74,8 @@ INDEX_LARGE = "ind_nifty100list"
 INDEX_MID = "ind_niftymidcap150list"
 INDEX_SMALL = "ind_niftysmallcap250list"
 
+# ------------------------------------------------------------------ sectors
+SECTOR_FETCH_LIMIT = _env("SECTOR_FETCH_LIMIT", 400)  # Yahoo sector lookups per nightly run
+
 # ------------------------------------------------------------------ storage
 KEEP_HIT_DAYS = _env("KEEP_HIT_DAYS", 30)
