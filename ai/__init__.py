@@ -1,15 +1,11 @@
-"""PART 3 - AI and news integration (to be built next).
+"""PART 3 - AI catalyst report.
 
-Planned modules:
-  collector.py  AI 1 (small, fast Groq model): builds the stakeholder map, plans
-                searches (company, promoters, management, investors, customers &
-                suppliers, peers, industry, government & regulators, brokerages,
-                index events, macro), then tags each article with scope,
-                impact link, event type, date and key numbers.
-  sources.py    Tavily, Exa, FMP, FRED and yfinance fetchers (run by Python, not the AI).
-  analyst.py    AI 2 (larger reasoning Groq model): news-first reasoning over the
-                tagged evidence pack -> JSON report (see prompts/analyst_prompt.md).
-  validator.py  Python checks: every claim cites a real evidence ID, dates are in
-                the 7-day window, primary catalysts are company-specific or have a
-                direct impact link.
+  settings.py   API keys (Streamlit secrets / env) and limits
+  llm.py        Groq wrapper returning parsed JSON
+  sources.py    Tavily, Exa, NewsAPI, Finnhub, Yahoo (yfinance), FMP, FRED fetchers + diagnostics
+  collector.py  AI 1 (fast model): stakeholder map + search plan, then tags each article
+                (scope, impact link, event, fact, relevance); Python filters and picks the evidence pack
+  analyst.py    AI 2 (reasoning model): news-first explanation citing evidence IDs
+  validator.py  Python checks on the Analyst's JSON (one automatic retry)
+  pipeline.py   runs everything for one stock and returns report + evidence + diagnostics
 """
