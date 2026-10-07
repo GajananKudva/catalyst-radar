@@ -10,6 +10,7 @@ from __future__ import annotations
 
 import time
 from datetime import datetime
+from zoneinfo import ZoneInfo
 from typing import Callable
 
 import pandas as pd
@@ -18,6 +19,7 @@ from ai import analyst, collector, settings, sources
 from ai.sources import Diagnostics
 
 Progress = Callable[[str, str], None]
+IST = ZoneInfo("Asia/Kolkata")
 
 
 def _noop(step: str, msg: str) -> None:
@@ -109,7 +111,7 @@ def run(row: dict, hits: pd.DataFrame, universe: pd.DataFrame | None, *, progres
                                                                "earnings_growth", "profit_margin", "recommendation")}},
         "meta": {"symbol": profile["symbol"], "company": profile["company"], "session": session, "kind": kind,
                  "window": [profile["start"], profile["end"]],
-                 "generated_at": datetime.now().isoformat(timespec="seconds"),
+                 "generated_at": datetime.now(IST).strftime("%Y-%m-%d %H:%M IST"),
                  "seconds": round(time.time() - t0, 1),
                  "models": {"collector": settings.get("GROQ_QUICK_MODEL"),
                             "analyst": settings.get("GROQ_ANALYST_MODEL")}},
