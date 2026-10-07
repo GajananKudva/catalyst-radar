@@ -25,6 +25,21 @@ GitHub may delay a scheduled run by a few minutes at busy times; the status line
 - **Holding** – whether the last price is still beyond the old level
 - **Status** – *intraday* (from the 15-minute scan), *confirmed* (checked with final data), *not confirmed*
 
+#### AI catalyst report (Deep dive -> Generate AI report)
+1. **Collector AI** (fast Groq model) maps the company's stakeholders (aliases, promoter group, key people,
+   products, raw materials, customers, peers, regulators) and writes 9-12 targeted searches.
+2. Python runs them on **Tavily, Exa, NewsAPI, Finnhub and Yahoo Finance**, keeps articles from 10 days before
+   to 1 day after the session, and removes duplicates.
+3. The Collector AI tags every article: scope (company, stakeholder, peer, industry, government, macro), impact
+   link (direct / indirect / none), event type, the key fact and a relevance score. Python re-checks that
+   "company" news really names the company and keeps the best 12 items as the **evidence pack**.
+4. **Analyst AI** (reasoning Groq model) explains the move news-first: the trigger, how surprising it was,
+   whether the news came before the price move, context, fundamentals as the base, rumours and what to watch,
+   citing every claim with an evidence ID. Earnings vs estimates and analyst grades (FMP), the Yahoo calendar,
+   macro data (FRED) and today's sector breadth are added as context.
+5. Python validates the answer (real evidence IDs, dates inside the window, only company or directly-linked
+   news as the trigger) and asks the Analyst to fix it once if needed.
+
 #### Sources
 NSE equity list and index lists (sector and market-cap bucket), Yahoo Finance daily prices (split-adjusted),
 NSE's corporate-action-adjusted 52-week report and bhavcopy as fallbacks. Sector labels for smaller companies
