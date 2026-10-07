@@ -2,9 +2,6 @@
 -r requirements-scanner.txt
 streamlit>=1.50
 plotly>=5.22
-# Part 3: AI + news APIs
-groq>=0.11
-tavily-python>=0.5
-exa-py>=1.5
-fredapi>=0.5
+# Part 3: AI (news APIs are called with requests)
+groq>=0.30
 python-dotenv>=1.0
