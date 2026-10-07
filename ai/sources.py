@@ -145,6 +145,9 @@ def finnhub_news(yahoo_symbol: str, start: date, end: date, *, diag: Diagnostics
     key = settings.get("FINNHUB_API_KEY")
     if not key:
         return []
+    if yahoo_symbol.upper().endswith((".NS", ".BO")):
+        diag.notes.append("Finnhub skipped: its free plan does not cover NSE/BSE company news")
+        return []
     params = {"symbol": yahoo_symbol, "from": start.isoformat(), "to": end.isoformat(), "token": key}
     try:
         r = requests.get("https://finnhub.io/api/v1/company-news", params=params, timeout=TIMEOUT)
@@ -231,7 +234,10 @@ def fmp_get(path: str, params: dict, *, diag: Diagnostics, name: str):
     try:
         r = requests.get(f"https://financialmodelingprep.com/stable/{path}", params={**params, "apikey": key},
                          timeout=TIMEOUT)
-        data = r.json()
+        try:
+            data = r.json()
+        except ValueError:
+            raise RuntimeError(f"HTTP {r.status_code}: {r.text[:120]}") from None
         if r.status_code != 200 or (isinstance(data, dict) and data.get("Error Message")):
             raise RuntimeError((data.get("Error Message") if isinstance(data, dict) else "") or f"HTTP {r.status_code}")
         diag.record(f"fmp_{name}", len(data) if isinstance(data, list) else 1)
