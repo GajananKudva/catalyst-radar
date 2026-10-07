@@ -263,6 +263,7 @@ def test_nightly_then_intraday_end_to_end(tmp_data, monkeypatch):
     assert thr.loc["GAP.NS", "source"] == "nse_report" and thr.loc["GAP.NS", "prior_52w_high"] == 61.0
     meta = json.loads(storage.meta_path().read_text())
     assert meta["thresholds_as_of"] == "2026-10-06"
+    assert meta["final"] is True
     # running again the same evening is a no-op
     assert nightly.run() == 0
 
@@ -293,6 +294,22 @@ def test_nightly_then_intraday_end_to_end(tmp_data, monkeypatch):
     latest = json.loads(storage.latest_path().read_text())
     assert latest["counts"]["high"] == 1 and latest["market_state"] == "open"
     assert latest["hits_file"] == "hits/2026-10-07.csv"
+
+
+def test_nightly_before_close_is_not_final(tmp_data, monkeypatch):
+    uni = pd.DataFrame({"symbol": ["UP"], "name": ["Up"], "series": "EQ", "isin": "", "sector": "Power",
+                        "mcap_bucket": "Small", "yahoo": ["UP.NS"]})
+    monkeypatch.setattr(nightly.universe, "load_universe", lambda force_refresh=False: uni)
+    monkeypatch.setattr(nightly, "NSEClient", FakeNSE)
+    hist = _history("2026-10-06")
+    monkeypatch.setattr(nightly.prices, "download_daily", lambda tickers, **kw: (hist, []))
+    monkeypatch.setattr(nightly, "now_ist", lambda: datetime(2026, 10, 6, 15, 35, tzinfo=config.IST))
+    assert nightly.run() == 0
+    assert json.loads(storage.meta_path().read_text())["final"] is False
+    # the evening run rebuilds instead of skipping
+    monkeypatch.setattr(nightly, "now_ist", lambda: datetime(2026, 10, 6, 18, 30, tzinfo=config.IST))
+    assert nightly.run() == 0
+    assert json.loads(storage.meta_path().read_text())["final"] is True
 
 
 def test_intraday_skips_outside_market_hours(tmp_data, monkeypatch):
