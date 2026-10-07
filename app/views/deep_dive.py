@@ -136,8 +136,41 @@ with right:
 # ---------------------------------------------------------------- AI report
 st.divider()
 st.subheader("Why did it move? AI catalyst report")
-st.button("Generate AI report", type="primary", icon=":material/auto_awesome:", disabled=True,
-          help="Coming in Part 3")
-st.caption("Part 3 will fill this section: a Collector AI gathers dated news about the company, its promoters, "
-           "customers, peers, industry and government announcements (Tavily, Exa, FMP, FRED); an Analyst AI "
-           "on Groq then explains the trigger, how surprising it was, and cites every source.")
+st.caption("Collector AI maps the company's stakeholders and gathers dated news on the company, its promoters, "
+           "customers, peers, industry and government announcements (Tavily, Exa, NewsAPI, Finnhub, Yahoo). "
+           "Analyst AI then explains the trigger, how surprising it was, and cites every source.")
+
+import report_view  # noqa: E402
+
+key = (sym, session, kind)
+cached = report_view.get_cached(key)
+c1, c2 = st.columns([1, 3], vertical_alignment="center")
+with c1:
+    clicked = st.button("Regenerate AI report" if cached else "Generate AI report", type="primary",
+                        icon=":material/auto_awesome:", width="stretch")
+with c2:
+    st.caption("Takes about 30–90 seconds. Reports are kept for 6 hours and shared by all users, "
+               "to stay within the free API limits.")
+
+if clicked:
+    from ai import pipeline, settings as ai_settings
+
+    missing = ai_settings.missing_keys()
+    if missing:
+        st.error(f"Missing secret(s): {', '.join(missing)}. Add them in Streamlit → Settings → Secrets.")
+    else:
+        with st.status("Building the AI catalyst report...", expanded=True) as box:
+            def progress(step: str, msg: str) -> None:
+                box.write(msg)
+                box.update(label=msg)
+            try:
+                result = pipeline.run(row.to_dict(), hits, uni, progress=progress)
+                report_view.put_cached(key, result)
+                cached = result
+                box.update(label="Report ready", state="complete", expanded=False)
+            except Exception as exc:
+                box.update(label="The AI report failed", state="error", expanded=True)
+                st.error(f"{type(exc).__name__}: {exc}")
+
+if cached:
+    report_view.render(cached)
