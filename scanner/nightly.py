@@ -20,7 +20,7 @@ from datetime import time, timedelta
 import pandas as pd
 
 import config
-from scanner import logic, prices, status, storage, universe
+from scanner import logic, prices, sectors, status, storage, universe
 from scanner.market_calendar import now_ist
 from scanner.nse import NSEClient, NSEError
 
@@ -106,6 +106,13 @@ def run(force: bool = False, refresh_universe: bool = False) -> int:
         hits_parts.append(hits_bhav)
     eod = pd.concat([h for h in hits_parts if not h.empty], ignore_index=True) if any(not h.empty for h in hits_parts) \
         else pd.DataFrame(columns=logic.HIT_COLUMNS)
+
+    # sector labels for stocks NSE's lists don't cover (today's hits looked up first)
+    try:
+        uni = sectors.fill_sectors(uni, priority=eod["symbol"].tolist() if not eod.empty else None)
+        storage.write_csv(uni, storage.universe_path())
+    except Exception as exc:  # never let sector lookup break the scan
+        log.warning("sector lookup skipped: %s", exc)
     eod = logic.enrich_hits(eod, uni)
 
     now_iso = now.isoformat(timespec="seconds")

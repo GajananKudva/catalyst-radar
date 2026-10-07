@@ -19,14 +19,23 @@ from scanner.nse import NSEClient, NSEError
 
 log = logging.getLogger(__name__)
 
-UNIVERSE_COLUMNS = ["symbol", "name", "series", "isin", "yahoo", "sector", "mcap_bucket"]
+UNIVERSE_COLUMNS = ["symbol", "name", "series", "isin", "yahoo", "sector", "industry", "mcap_bucket"]
 
 
-def _is_stale(path) -> bool:
-    if not path.exists():
+def _meta_path():
+    return storage.data_dir() / "universe_meta.json"
+
+
+def _is_stale() -> bool:
+    """File mtimes are unreliable after a git checkout, so the refresh time is stored explicitly."""
+    ts = storage.read_json(_meta_path()).get("refreshed_at")
+    if not ts:
         return True
-    age = datetime.now().timestamp() - path.stat().st_mtime
-    return age > config.UNIVERSE_MAX_AGE_DAYS * 86400
+    try:
+        age = datetime.now(config.IST) - datetime.fromisoformat(ts)
+    except ValueError:
+        return True
+    return age.total_seconds() > config.UNIVERSE_MAX_AGE_DAYS * 86400
 
 
 def enrich(equities: pd.DataFrame, sector_list: pd.DataFrame | None,
@@ -39,6 +48,7 @@ def enrich(equities: pd.DataFrame, sector_list: pd.DataFrame | None,
     else:
         df["sector"] = None
     df["sector"] = df["sector"].fillna("Unclassified")
+    df["industry"] = None
 
     def bucket(sym: str) -> str:
         if sym in large:
@@ -75,10 +85,12 @@ def build_universe(client: NSEClient | None = None) -> pd.DataFrame:
 def load_universe(force_refresh: bool = False, client: NSEClient | None = None) -> pd.DataFrame:
     path = storage.universe_path()
     cached = storage.read_universe()
-    if force_refresh or cached is None or _is_stale(path):
+    if force_refresh or cached is None or _is_stale():
         try:
             uni = build_universe(client)
             storage.write_csv(uni, path)
+            storage.write_json({"refreshed_at": datetime.now(config.IST).isoformat(timespec="seconds"),
+                                "symbols": int(len(uni))}, _meta_path())
             log.info("universe refreshed from NSE: %d symbols", len(uni))
             return uni
         except Exception as exc:  # NSE down or blocked
