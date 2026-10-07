@@ -8,7 +8,7 @@ Finds every NSE stock whose **day's high reached or crossed its prior 52-week hi
 |---|---|---|
 | 1. Background scanner (52-week highs & lows) | **Live** | `scanner/`, `.github/workflows/` |
 | 2. Dashboard (filters, KPIs, sector breadth, deep dive) | **Built** | `app/` |
-| 3. AI + news APIs (Collector AI, Analyst AI, report) | Planned | `ai/` |
+| 3. AI catalyst report (Collector AI + Analyst AI on Groq) | **Built** | `ai/`, `app/report_view.py` |
 
 ---
 
@@ -88,6 +88,22 @@ DATA_URL = "https://raw.githubusercontent.com/<user>/<repo>/data"
 Sector labels: NSE's index lists label ~750 stocks; the nightly job looks up the rest on Yahoo Finance
 (up to 400 per night, today's hits first), maps them to NSE's sector names and caches them in
 `data/sector_cache.csv`.
+
+## AI catalyst report
+
+Deep dive -> **Generate AI report** runs `ai/pipeline.py`: Collector AI (`GROQ_QUICK_MODEL`, default
+`openai/gpt-oss-20b`) plans searches and tags articles; Python gathers news from Tavily, Exa, NewsAPI, Finnhub
+and Yahoo, filters by date and entity, and builds a 12-item evidence pack; Analyst AI (`GROQ_ANALYST_MODEL`,
+default `openai/gpt-oss-120b`) writes a news-first JSON report that Python validates. Reports are cached for
+6 hours. Add these secrets on Streamlit Cloud (never commit them):
+
+```
+GROQ_API_KEY, GROQ_QUICK_MODEL, GROQ_ANALYST_MODEL, TAVILY_API_KEY, EXA_API_KEY,
+NEWSAPI_KEY, FINNHUB_API_KEY, FMP_API_KEY, FRED_API_KEY
+```
+
+Only `GROQ_API_KEY` is required; each news source is skipped if its key is missing. Groq's free tier allows
+about 8,000 tokens per minute per model, so prompts are kept compact.
 
 ## Settings
 
