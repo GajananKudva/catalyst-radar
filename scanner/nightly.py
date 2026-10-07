@@ -15,7 +15,7 @@ from __future__ import annotations
 
 import argparse
 import logging
-from datetime import timedelta
+from datetime import time, timedelta
 
 import pandas as pd
 
@@ -61,7 +61,11 @@ def run(force: bool = False, refresh_universe: bool = False) -> int:
     else:
         session = nifty["date"].max()
 
-    if not force and meta_old.get("thresholds_as_of") == session.strftime("%Y-%m-%d"):
+    # data for today's session is only final after the close settles (~16:00 IST)
+    final = not (session.date() == today and now.time() < time(16, 0))
+    if not final:
+        log.warning("running before 16:00 IST: today's data may still change; the evening run will rebuild")
+    if not force and meta_old.get("thresholds_as_of") == session.strftime("%Y-%m-%d") and meta_old.get("final", True):
         log.info("thresholds already built for %s; nothing to do (use --force to rebuild)", session.date())
         return 0
 
@@ -131,6 +135,7 @@ def run(force: bool = False, refresh_universe: bool = False) -> int:
     nifty_last, nifty_ref = _nifty_refs(nifty)
     meta = {
         "built_at": now_iso,
+        "final": final,
         "thresholds_as_of": session.strftime("%Y-%m-%d"),
         "nifty_prev_close": nifty_last,
         "nifty_close_ref": nifty_ref,
