@@ -316,3 +316,34 @@ def test_intraday_skips_outside_market_hours(tmp_data, monkeypatch):
     monkeypatch.setattr(intraday, "now_ist", lambda: datetime(2026, 10, 7, 20, 0, tzinfo=config.IST))
     assert intraday.run() == 0
     assert not storage.latest_path().exists()
+
+
+# ----------------------------------------------------------------- sectors
+def test_map_to_nse_sector():
+    from scanner.sectors import map_to_nse_sector
+    assert map_to_nse_sector("Consumer Cyclical", "Auto Parts") == "Automobile and Auto Components"
+    assert map_to_nse_sector("Basic Materials", "Steel") == "Metals & Mining"
+    assert map_to_nse_sector("Healthcare", "Drug Manufacturers - Specialty & Generic") == "Healthcare"
+    assert map_to_nse_sector("Industrials", "Specialty Industrial Machinery") == "Capital Goods"
+    assert map_to_nse_sector("Technology", None) == "Information Technology"
+    assert map_to_nse_sector(None, None) == "Unclassified"
+
+
+def test_fill_sectors_uses_cache_priority_and_limit(tmp_data):
+    from scanner import sectors
+    uni = pd.DataFrame({"yahoo": ["A.NS", "B.NS", "C.NS", "D.NS"],
+                        "sector": ["Power", "Unclassified", "Unclassified", "Unclassified"]})
+    calls = []
+
+    def fake(t):
+        calls.append(t)
+        return {"sector": "Technology", "industry": "Software - Application"}
+
+    out = sectors.fill_sectors(uni, priority=["D.NS"], limit=2, fetcher=fake, workers=1)
+    assert calls == ["D.NS", "B.NS"]                       # priority first, limit respected
+    s = out.set_index("yahoo")["sector"]
+    assert s["A.NS"] == "Power" and s["D.NS"] == "Information Technology" and s["C.NS"] == "Unclassified"
+    # next run: cached answers applied without refetching, only C is looked up
+    calls.clear()
+    out2 = sectors.fill_sectors(uni, limit=10, fetcher=fake, workers=1)
+    assert calls == ["C.NS"] and (out2["sector"] != "Unclassified").all()
