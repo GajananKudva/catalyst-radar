@@ -1,0 +1,53 @@
+name: Nightly thresholds + end-of-day check
+
+# 18:30 IST (13:00 UTC), Monday-Friday: confirm today's 52-week highs/lows and
+# build the thresholds the intraday scan uses tomorrow.
+# Run it once by hand (Actions -> this workflow -> Run workflow) to bootstrap.
+on:
+  schedule:
+    - cron: "0 13 * * 1-5"
+  workflow_dispatch:
+    inputs:
+      force:
+        description: "Rebuild even if thresholds are already current"
+        type: boolean
+        default: false
+      refresh_universe:
+        description: "Re-download the NSE stock list now"
+        type: boolean
+        default: false
+
+permissions:
+  contents: write
+
+concurrency:
+  group: radar-data
+  cancel-in-progress: false
+
+jobs:
+  nightly:
+    runs-on: ubuntu-latest
+    timeout-minutes: 45
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+
+      - name: Install dependencies
+        run: pip install -r requirements-scanner.txt
+
+      - name: Restore data branch
+        run: bash scripts/restore_data.sh
+
+      - name: Build thresholds and end-of-day list
+        run: >
+          python -m scanner.nightly
+          ${{ inputs.force && '--force' || '' }}
+          ${{ inputs.refresh_universe && '--refresh-universe' || '' }}
+
+      - name: Publish data branch
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: bash scripts/publish_data.sh

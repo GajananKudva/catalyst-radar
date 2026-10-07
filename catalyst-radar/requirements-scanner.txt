@@ -1,0 +1,5 @@
+# Background scanner (GitHub Actions) - kept lean so runs install fast
+pandas>=2.1
+numpy>=1.26
+yfinance>=0.2.54
+requests>=2.31

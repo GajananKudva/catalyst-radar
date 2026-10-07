@@ -1,0 +1,54 @@
+name: Intraday 52-week scan
+
+# Every 15 minutes, Monday-Friday, 08:30-16:15 IST (03:00-10:45 UTC).
+# The gate step exits in seconds outside 09:15-15:45 IST, so off-hours runs cost almost nothing.
+# Note: GitHub may delay scheduled runs by several minutes when its servers are busy.
+on:
+  schedule:
+    - cron: "*/15 3-10 * * 1-5"
+  workflow_dispatch:
+    inputs:
+      force:
+        description: "Run even outside market hours"
+        type: boolean
+        default: false
+
+permissions:
+  contents: write
+
+concurrency:
+  group: radar-data
+  cancel-in-progress: false
+
+jobs:
+  scan:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+
+      - name: Market-hours gate
+        id: gate
+        run: python -m scanner.market_calendar --job intraday ${{ inputs.force && '--force' || '' }}
+
+      - name: Install dependencies
+        if: steps.gate.outputs.run == 'true'
+        run: pip install -r requirements-scanner.txt
+
+      - name: Restore data branch
+        if: steps.gate.outputs.run == 'true'
+        run: bash scripts/restore_data.sh
+
+      - name: Scan
+        if: steps.gate.outputs.run == 'true'
+        run: python -m scanner.intraday ${{ inputs.force && '--force' || '' }}
+
+      - name: Publish data branch
+        if: steps.gate.outputs.run == 'true'
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: bash scripts/publish_data.sh
