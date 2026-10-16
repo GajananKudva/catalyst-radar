@@ -1,0 +1,18 @@
+{
+  "generated_at": "2026-10-16T22:46:41+05:30",
+  "job": "nightly",
+  "market_state": "closed",
+  "session_date": "2026-10-16",
+  "thresholds_as_of": "2026-10-16",
+  "universe_size": 2575,
+  "scanned_ok": 2566,
+  "coverage_pct": 99.7,
+  "counts": {
+    "high": 40,
+    "low": 52,
+    "high_volume_confirmed": 17,
+    "low_volume_confirmed": 13
+  },
+  "hits_file": "hits/2026-10-16.csv",
+  "note": "End-of-day confirmed list"
+}
