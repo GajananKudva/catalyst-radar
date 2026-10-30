@@ -26,6 +26,12 @@ def get_cached(key: tuple) -> dict | None:
     return None
 
 
+def cached_keys() -> list[tuple]:
+    """(symbol, session, kind) of every report still in the shared cache."""
+    now = time.time()
+    return [k for k, v in list(_shared_reports().items()) if now - v["t"] < CACHE_HOURS * 3600]
+
+
 def put_cached(key: tuple, result: dict) -> None:
     _shared_reports()[key] = {"t": time.time(), "result": result}
 
