@@ -30,6 +30,19 @@ def put_cached(key: tuple, result: dict) -> None:
     _shared_reports()[key] = {"t": time.time(), "result": result}
 
 
+NEWS_SOURCES = ("tavily", "exa", "newsapi")
+
+
+def source_problems(diag: dict) -> list[str]:
+    """News sources that were switched off or returned only errors in this run."""
+    out = [f"{name.title()}: {why}" for name, why in (diag.get("disabled") or {}).items()]
+    for name, s in (diag.get("sources") or {}).items():
+        if name in NEWS_SOURCES and name not in (diag.get("disabled") or {}) and s.get("calls") \
+                and not s.get("results") and s.get("errors"):
+            out.append(f"{name.title()}: {s['errors'][0][-80:]}")
+    return out
+
+
 def badge(text: str, color: str) -> str:
     safe = str(text).replace("[", "(").replace("]", ")")
     return f":{color}-badge[{safe}]"
@@ -61,6 +74,10 @@ def render(result: dict) -> None:
     st.info(f"**Verdict:** {verdict}", icon=":material/gavel:")
     if rep.get("confidence_reason"):
         st.caption(rep["confidence_reason"])
+    failed = source_problems(result.get("diagnostics", {}))
+    if failed:
+        st.warning("Some news sources did not work for this report, so it may miss news: " + "; ".join(failed)
+                   + ". See Diagnostics below.", icon=":material/cloud_off:")
     if rep.get("_validation"):
         st.warning("Some automatic checks on this answer did not pass, so read it with care: "
                    + "; ".join(rep["_validation"][:4]), icon=":material/rule:")
