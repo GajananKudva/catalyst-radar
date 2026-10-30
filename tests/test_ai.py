@@ -163,6 +163,8 @@ def test_validator_rules():
     rep2 = json.loads(json.dumps(GOOD))
     rep2["primary_catalysts"], rep2["trigger_type"] = [], "No verified catalyst"
     assert validator.validate(rep2, ev, SESSION, "2026-09-27") == []
+    rep2["context_not_company_specific"] = [{"evidence_id": "HYPOTHESIS1", "note": "sector move"}]
+    assert validator.validate(rep2, ev, SESSION, "2026-09-27") == []      # numbered hypotheses are fine
 
 
 def test_missing_key_message(monkeypatch):
