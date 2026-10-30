@@ -167,6 +167,41 @@ def status_line(latest: dict) -> None:
                    "so some 52-week hits may be missing.", icon=":material/warning:")
 
 
+def market_banner(latest: dict, now: datetime | None = None) -> None:
+    """Compact status row: a coloured state badge plus when the data was last updated.
+
+    The scanner's own market_state is only as fresh as its last run, so the current IST clock decides
+    whether the market is really still open (avoids "scan is late" warnings after the close).
+    """
+    from scanner.market_calendar import market_phase, now_ist
+
+    now = now or now_ist()
+    mins = minutes_since(latest.get("generated_at"))
+    ago = "" if mins is None else (f"{mins:.0f} min ago" if mins < 120 else f"{mins / 60:.1f} h ago")
+    phase = market_phase(now)
+    is_today = latest.get("session_date") == now.date().isoformat()
+    state = latest.get("market_state", "")
+    coverage = f"{latest.get('scanned_ok', 0):,}/{latest.get('universe_size', 0):,} stocks scanned"
+
+    if state in ("open", "closing") and is_today and phase in ("open", "closing"):
+        badge, note = ":green-badge[:material/radio_button_checked: Live]", "updates every 15 minutes"
+    elif state in ("open", "closing"):
+        badge = ":gray-badge[:material/schedule: Market closed]"
+        note = "last intraday scan; final list after ~18:30 IST"
+    elif state == "closed":
+        badge, note = ":blue-badge[:material/task_alt: End-of-day list]", "confirmed with final prices"
+    else:
+        badge, note = ":gray-badge[No trading data]", "holiday or data not available yet"
+    st.markdown(f"{badge} &nbsp; Session **{latest.get('session_date', '-')}** · {note} · updated {ago} · {coverage}")
+
+    if state in ("open", "closing") and is_today and phase in ("open", "closing") and mins is not None and mins > 35:
+        st.warning(f"The last scan finished {mins:.0f} minutes ago; GitHub may have delayed the scheduled run.",
+                   icon=":material/schedule:")
+    if latest.get("coverage_pct", 100) < 90:
+        st.warning(f"Only {latest.get('coverage_pct')}% of stocks returned data in the last scan, "
+                   "so some 52-week hits may be missing.", icon=":material/warning:")
+
+
 def fmt_pct(v: float | None, plus: bool = True) -> str:
     if v is None or pd.isna(v):
         return "–"
