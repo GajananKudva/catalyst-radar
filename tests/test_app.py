@@ -59,8 +59,11 @@ def test_dashboard_renders_and_filters(app):
     assert not app.exception
     metrics = {m.label: m.value for m in app.metric}
     assert metrics["▲ 52W highs"] == "1" and metrics["▼ 52W lows"] == "1"
-    app.sidebar.toggle[0].set_value(True).run()          # volume-confirmed only
+    app.session_state["quick"] = ["vol"]                 # quick filter: volume-confirmed only
+    app.run()
+    assert not app.exception
     assert {m.label: m.value for m in app.metric}["▼ 52W lows"] == "0"
+    assert any("AAA" in m.value for m in app.markdown)   # the stock card is shown
 
 
 def test_deep_dive_page(app):
@@ -82,3 +85,28 @@ def test_apply_filters():
     assert list(common.apply_filters(df, f)["symbol"]) == ["A.NS"]
     assert list(common.apply_filters(df, common.Filters(hide_unconfirmed=False, search="b"))["symbol"]) == ["B.NS"]
     assert df.loc[df["symbol"] == "B.NS", "sector"].iloc[0] == "Unclassified"
+
+
+def test_deep_dive_shows_cached_report(app):
+    import report_view
+    result = {
+        "report": {"verdict": "Order win on 2026-10-07 [E1]", "trigger_type": "Order win", "trigger_scope": "COMPANY",
+                   "confidence": "High", "surprise": {"scheduled": False, "surprise_score": 80},
+                   "primary_catalysts": [{"evidence_id": "E1", "date": "2026-10-07", "what_happened": "Rs 300 cr order",
+                                          "timing": "before"}], "_validation": []},
+        "evidence": [{"id": "E1", "url": "https://example.com/a", "published_at": "2026-10-07", "scope": "COMPANY",
+                      "publisher": "example.com", "title": "Aaa wins order"}],
+        "diagnostics": {"sources": {"tavily": {"calls": 2, "results": 0, "errors": ["432 Client Error"]}},
+                        "disabled": {"tavily": "plan usage limit reached (HTTP 432)"}},
+        "meta": {"symbol": "AAA", "session": "2026-10-07"},
+    }
+    report_view.put_cached(("AAA.NS", "2026-10-07", "HIGH"), result)
+    app.run()
+    assert not app.exception
+    assert any("AI report ready" in m.value for m in app.markdown)       # badge on the dashboard card
+    app.query_params["symbol"] = "AAA.NS"
+    app.query_params["session"] = "2026-10-07"
+    app.switch_page("views/deep_dive.py").run()
+    assert not app.exception
+    assert any("Order win" in i.value for i in app.info)                 # verdict rendered
+    assert any("Tavily" in w.value for w in app.warning)                 # failed-source warning
