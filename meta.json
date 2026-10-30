@@ -1,0 +1,15 @@
+{
+  "built_at": "2026-10-30T23:57:13+05:30",
+  "final": true,
+  "thresholds_as_of": "2026-10-30",
+  "nifty_prev_close": 23053.099609375,
+  "nifty_close_ref": 22620.44921875,
+  "universe_size": 2587,
+  "thresholds_count": 2578,
+  "yahoo_ok": 2587,
+  "yahoo_missing": 0,
+  "sources": {
+    "yfinance": 2285,
+    "nse_report": 293
+  }
+}
