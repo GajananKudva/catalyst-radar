@@ -105,6 +105,7 @@ def mocked_sources(monkeypatch):
     monkeypatch.setattr(sources, "fmp_context", lambda *a, **k: {"earnings": [], "grades": []})
     monkeypatch.setattr(sources, "fred_snapshot", lambda *a, **k: {})
     monkeypatch.setenv("GROQ_API_KEY", "test-key")
+    monkeypatch.setenv("TAVILY_API_KEY", "test-key")
 
 
 ROW = {"session_date": SESSION, "symbol": "ACME.NS", "nse_symbol": "ACME", "name": "Acme Solar Glass Limited",
@@ -181,3 +182,43 @@ def test_helpers():
     terms = collector.alias_terms("HFCL Limited", "HFCL", ["Himachal Futuristic"])
     assert collector.mentions({"title": "HFCL bags 5G order", "snippet": ""}, terms)
     assert not collector.mentions({"title": "Telecom stocks rally", "snippet": ""}, terms)
+
+
+def test_tavily_quota_switches_to_exa(monkeypatch):
+    """HTTP 432 from Tavily (plan limit) switches Tavily off and runs the same search on Exa."""
+    monkeypatch.setenv("TAVILY_API_KEY", "t")
+    monkeypatch.setenv("EXA_API_KEY", "e")
+    calls = {"tavily": 0, "exa": []}
+
+    class Resp:
+        def __init__(self, code, payload):
+            self.status_code, self._payload = code, payload
+
+        def raise_for_status(self):
+            if self.status_code >= 400:
+                raise sources.requests.HTTPError(f"{self.status_code} Client Error")
+
+        def json(self):
+            return self._payload
+
+    def fake_post(url, json=None, **kw):
+        if "tavily" in url:
+            calls["tavily"] += 1
+            return Resp(432, {})
+        calls["exa"].append(json)
+        return Resp(200, {"results": [{"title": "Acme wins order", "url": "https://x.example/a",
+                                       "publishedDate": "2026-10-06T05:00:00Z", "text": "Acme order"}]})
+
+    monkeypatch.setattr(sources.requests, "post", fake_post)
+    diag = sources.Diagnostics()
+    start, end = pd.Timestamp("2026-09-27").date(), pd.Timestamp("2026-10-08").date()
+    first = collector.web_search("Acme order", start, end, category="company", diag=diag)
+    second = collector.web_search("Acme results", start, end, category="company", diag=diag,
+                                  include_domains=["nseindia.com"])
+    assert "tavily" in diag.disabled and calls["tavily"] == 1          # no more Tavily calls after the 432
+    assert first and second and first[0]["source_api"] == "exa"
+    assert calls["exa"][1]["includeDomains"] == ["nseindia.com"] and "category" not in calls["exa"][1]
+    sys.path.insert(0, str(Path(__file__).resolve().parents[1] / "app"))
+    import report_view  # noqa: E402
+    problems = report_view.source_problems(diag.as_dict())
+    assert problems and "432" in problems[0]
