@@ -46,6 +46,6 @@ def validate(report: dict, evidence: list[dict], session: str, start: str) -> li
 
     for c in report.get("context_not_company_specific") or []:
         eid = str(c.get("evidence_id", "")).strip()
-        if eid and eid.upper() != "HYPOTHESIS" and eid not in ev:
+        if eid and not eid.upper().startswith("HYPOTHESIS") and eid not in ev:   # e.g. "HYPOTHESIS1" is allowed
             problems.append(f"context item cites unknown evidence id '{eid}'")
     return problems
