@@ -69,15 +69,18 @@ If NSE blocks the stock-list download, save `EQUITY_L.csv` from nseindia.com and
 
 `app/streamlit_app.py` is a three-page Streamlit app:
 
-- **Dashboard** – status line (session, market state, last update, coverage), KPI tiles (52-week highs, lows,
-  volume-confirmed highs, net breadth, % of universe making highs, with change vs the previous session),
-  tabs for highs / lows (sortable table, row select → *Dive deeper*, CSV download, volume-vs-distance chart),
-  sector breadth, daily trend and scan details. Sidebar filters: session, sector, market cap, minimum % beyond
-  the level, volume-confirmed, still holding, hide new listings, hide unconfirmed, search; settings: auto-refresh
-  every 5 minutes and refresh now.
-- **Deep dive** – one stock: hit metrics, one-year candles with the prior 52-week level and the hit day,
-  sector context (how many peers hit too), the stock's hit history, and the AI report section (part 3).
-- **How it works** – plain-language explanation of the rule, timings and columns.
+- **Dashboard** – market status badge (Live / Market closed / End-of-day list), a Highs/Lows switch, search,
+  one-tap filters (volume-confirmed, still beyond the level, listed > 1 year) and a *More filters* menu (sector,
+  market cap, minimum % beyond the level, hide unconfirmed), four KPIs (highs, lows, net breadth,
+  volume-confirmed highs, with change vs the previous session), and **one card per stock** (`app/cards.py`):
+  price and day change, a plain-English line such as "▲ 12.2% above 52-week high ₹121.67", volume / gap /
+  still-above labels, an "AI report ready" badge and a *Why did it move?* link. Cards can be sorted, shown 12 at a
+  time, or switched to a table with CSV download. *Market overview* tabs: sector breadth, daily trend, volume vs
+  move, scan details. The sidebar holds the session picker and refresh settings.
+- **Deep dive** – one stock: a one-sentence summary, five key numbers, the **AI report** ("Why did it move?"),
+  then tabs for the one-year price chart, sector peers (as cards) and the stock's 52-week hit history.
+  Previous / Next links step through the day's stocks.
+- **How it works** – plain-language explanation of the rule, timings, how to read a card and the AI report.
 
 On Streamlit Cloud point the app at `app/streamlit_app.py` and add the secret:
 
