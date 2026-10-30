@@ -76,18 +76,30 @@ def plan(profile: dict, *, diag: Diagnostics, client=None) -> dict:
 
 
 # ---------------------------------------------------------------- 2. gather
+def web_search(q: str, start, end, *, category: str, diag: Diagnostics, include_domains: list[str] | None = None,
+               topic: str = "news") -> list[dict]:
+    """Tavily first; if Tavily is unavailable (no key, quota or auth error) run the same search on Exa."""
+    if settings.get("TAVILY_API_KEY") and "tavily" not in diag.disabled:
+        items = sources.tavily_search(q, start, end, category=category, diag=diag,
+                                      include_domains=include_domains, topic=topic)
+        if items or "tavily" not in diag.disabled:
+            return items
+    return sources.exa_search(q, start, category=category, diag=diag, num=5, include_domains=include_domains,
+                              news_only=include_domains is None)
+
+
 def gather(profile: dict, stake: dict, *, diag: Diagnostics) -> list[dict]:
     start, end = pd.Timestamp(profile["start"]).date(), pd.Timestamp(profile["end"]).date()
     name, sym, yahoo = profile["company"], profile["symbol"], profile["yahoo"]
     jobs = []
     for q in stake.get("queries", []):
         if q["category"] == "government_policy":
-            jobs.append(lambda q=q: sources.tavily_search(q["q"], start, end, category=q["category"], diag=diag,
-                                                          include_domains=settings.GOV_DOMAINS, topic="general"))
-        jobs.append(lambda q=q: sources.tavily_search(q["q"], start, end, category=q["category"], diag=diag))
+            jobs.append(lambda q=q: web_search(q["q"], start, end, category=q["category"], diag=diag,
+                                               include_domains=settings.GOV_DOMAINS, topic="general"))
+        jobs.append(lambda q=q: web_search(q["q"], start, end, category=q["category"], diag=diag))
     # fixed searches that don't depend on the plan
-    jobs.append(lambda: sources.tavily_search(f"{short_name(name)} announcement", start, end, category="company",
-                                              diag=diag, include_domains=settings.FILING_DOMAINS, topic="general"))
+    jobs.append(lambda: web_search(f"{short_name(name)} announcement", start, end, category="company",
+                                   diag=diag, include_domains=settings.FILING_DOMAINS, topic="general"))
     jobs.append(lambda: sources.exa_search(f"{short_name(name)} {sym} news", start, category="company", diag=diag))
     jobs.append(lambda: sources.exa_search(f"{profile['sector']} sector India news", start, category="industry",
                                            diag=diag, num=4))
