@@ -14,16 +14,16 @@ touches its high at 11:00 stays on the list even if it falls back later.
 | Intraday scan | every 15 min, 09:15–15:45 | today's high/low so far vs last night's 52-week levels |
 | Nightly job | about 18:30 | confirms the day's list with final data and prepares tomorrow's levels |
 
-GitHub may delay a scheduled run by a few minutes at busy times; the status line shows when the data was last updated.
+GitHub may delay a scheduled run by a few minutes at busy times; the status badge at the top of the dashboard shows when the data was last updated.
 
-#### Columns
-- **Beyond 52W %** – how far the day's high went past the prior 52-week high (or the low below the prior low)
-- **Vol ×** – today's volume vs the 20-day average; **Vol pace** adjusts for the time of day
-- **Gap %** – opening price vs the previous close
-- **Close in range** – where the last price sits in the day's range (100% = at the high)
-- **vs Nifty 1M** – the stock's 1-month return minus Nifty 50's
-- **Holding** – whether the last price is still beyond the old level
-- **Status** – *intraday* (from the 15-minute scan), *confirmed* (checked with final data), *not confirmed*
+#### How to read a stock card
+- **Price and today's change** – the last traded price and the move since yesterday's close
+- **"▲ 12.2% above 52-week high ₹121.67"** – how far the price went past its old one-year record (▼ for lows)
+- **Volume 2.2× ✓** – trading volume compared with a normal day; the ✓ means at least 1.5×, so many investors took part
+- **Gap** – how much the stock opened above or below yesterday's close
+- **Still above / Fell back** – whether the price is still past the old record now
+- **Intraday / Confirmed at close** – intraday hits come from the 15-minute scan; the evening check confirms them
+- **AI report ready** – someone has already generated the "Why did it move?" report (kept for 6 hours)
 
 #### AI catalyst report (Deep dive -> Generate AI report)
 1. **Collector AI** (fast Groq model) maps the company's stakeholders (aliases, promoter group, key people,
