@@ -35,8 +35,15 @@ class Diagnostics:
         if error:
             s["errors"].append(error[:300])
 
+    disabled: dict = field(default_factory=dict)  # source -> reason (quota / auth problems stop further calls)
+
+    def disable(self, name: str, reason: str) -> None:
+        if name not in self.disabled:
+            self.disabled[name] = reason
+            self.notes.append(f"{name} switched off for this report: {reason}")
+
     def as_dict(self) -> dict:
-        return {"sources": self.sources, "llm": self.llm, "notes": self.notes}
+        return {"sources": self.sources, "llm": self.llm, "notes": self.notes, "disabled": self.disabled}
 
 
 # ---------------------------------------------------------------- helpers
@@ -72,10 +79,16 @@ def _item(source: str, title, url, published, snippet, category: str, publisher:
 
 
 # ------------------------------------------------------------------ Tavily
+# errors that will not go away on retry: stop calling Tavily for the rest of the report
+TAVILY_FATAL = {401: "invalid API key (HTTP 401)", 403: "access denied (HTTP 403)",
+                432: "plan usage limit reached (HTTP 432) - renew the plan or use a new key",
+                433: "pay-as-you-go limit reached (HTTP 433)"}
+
+
 def tavily_search(query: str, start: date, end: date, *, category: str, diag: Diagnostics,
                   include_domains: list[str] | None = None, topic: str = "news", max_results: int = 6) -> list[dict]:
     key = settings.get("TAVILY_API_KEY")
-    if not key:
+    if not key or "tavily" in diag.disabled:
         return []
     body = {"query": query, "topic": topic, "search_depth": "basic", "max_results": max_results,
             "start_date": start.isoformat(), "end_date": end.isoformat(),
@@ -85,6 +98,8 @@ def tavily_search(query: str, start: date, end: date, *, category: str, diag: Di
     try:
         r = requests.post("https://api.tavily.com/search", json=body, timeout=TIMEOUT,
                           headers={"Authorization": f"Bearer {key}"})
+        if r.status_code in TAVILY_FATAL:
+            diag.disable("tavily", TAVILY_FATAL[r.status_code])
         r.raise_for_status()
         res = r.json().get("results", [])
         out = [_item("tavily", x.get("title"), x.get("url"), x.get("published_date"), x.get("content"), category)
@@ -97,15 +112,22 @@ def tavily_search(query: str, start: date, end: date, *, category: str, diag: Di
 
 
 # --------------------------------------------------------------------- Exa
-def exa_search(query: str, start: date, *, category: str, diag: Diagnostics, num: int = 6) -> list[dict]:
+def exa_search(query: str, start: date, *, category: str, diag: Diagnostics, num: int = 6,
+               include_domains: list[str] | None = None, news_only: bool = True) -> list[dict]:
     key = settings.get("EXA_API_KEY")
-    if not key:
+    if not key or "exa" in diag.disabled:
         return []
-    body = {"query": query, "type": "auto", "category": "news", "numResults": num,
+    body = {"query": query, "type": "auto", "numResults": num,
             "startPublishedDate": f"{start.isoformat()}T00:00:00Z",
             "contents": {"text": {"maxCharacters": 600}}}
+    if news_only:
+        body["category"] = "news"
+    if include_domains:
+        body["includeDomains"] = include_domains
     try:
         r = requests.post("https://api.exa.ai/search", json=body, timeout=TIMEOUT, headers={"x-api-key": key})
+        if r.status_code in (401, 402, 403):
+            diag.disable("exa", f"HTTP {r.status_code} (key or credits)")
         r.raise_for_status()
         res = r.json().get("results", [])
         out = [_item("exa", x.get("title"), x.get("url"), x.get("publishedDate"),
